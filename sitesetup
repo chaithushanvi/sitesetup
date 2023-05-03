@@ -1,0 +1,551 @@
+                                                         Site Setup
+                                                         
+                                                         
+Step 1: first we need to create one container 
+
+       * docker run --name A1 -it alpine:3.12
+       
+Step2: update the repository 
+
+       * apk update
+       
+Step3: then we need to install some softwares like 
+
+       * nginx 1.8
+       * mysql 8.0
+       * php 7.4
+       * elasticsearch 7.9
+       * composer 1
+       
+Step4: Inginx Installation and create one  nginx directory under the run folder
+
+       * apk add nginx 
+       * mkdir -p run/nginx
+     
+Step5: PHP installation for php we need to install some required packages for that you just run the below commond
+
+       * apk add vim php7 php7-fpm php7-bcmath php7-cli php7-ctype php7-curl php7-dom php7-fpm php7-gd php7-iconv php7-intl php7-json php7-mbstring php7-mcrypt php7-openssl php7-pdo_mysql php7-phar php7-session php7-simplexml php7-soap php7-tokenizer php7-xml php7-xmlwriter php7-xsl php7-zip php7-zlib php7-sockets php7-sodium php7-fileinfo php7-xmlreader
+       
+Step6: then you need to move /etc/php7 folder there you can found the php.ini file you have to enter into that file do some modification in that like 
+
+       * max_excution_time: 3600
+       * max_input_time: 1800
+       * memory_limit: -1
+       * upload_max_filesize: 10M
+       
+Composer installation 
+======================
+
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" &&  php -r "if (hash_file('sha384', 'composer-setup.php') === '55ce33d7678c5a611085589f1f3ddf8b3c52d662cd01d4ba75c0ee0459970c2200a51f492d557530c71c15d8dba01eae') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;" && php composer-setup.php && mv composer.phar /usr/local/bin/composer
+       
+Step7: mysql Installation you need to run the below commond
+
+       * apk add mysql mysql-client && addgroup mysql mysql
+       
+Step8: Then you need to start the mysql and create the one user and one database for this you just run the below script it will create one user and one database
+
+exec /usr/bin/mysqld --user=mysql --console --log-bin-trust-function-creators=1 &
+if [ ! -d "/run/mysqld" ]; then
+mkdir -p /run/mysqld
+chown -R mysql:mysql /run/mysqld
+fi
+chown -R mysql:mysql /var/lib/mysql
+echo 'Initializing database'
+mysql_install_db --user=mysql --basedir=/usr --datadir=/var/lib/mysql > /dev/null
+tfile=`mktemp`
+if [ ! -f "$tfile" ]; then
+return 1
+fi
+# save sql
+echo "[i] Create temp file: $tfile"
+cat << EOF > $tfile
+USE mysql;
+FLUSH PRIVILEGES;
+DELETE FROM mysql.user;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;
+EOF
+echo "[i] Creating database: magento"
+echo "CREATE DATABASE IF NOT EXISTS magento CHARACTER SET utf8 COLLATE utf8_general_ci;" >> $tfile
+echo "GRANT ALL ON magento.* to 'magento'@'%' IDENTIFIED BY 'magento';" >> $tfile
+echo 'FLUSH PRIVILEGES;' >> $tfile
+echo 'SET GLOBAL log_bin_trust_function_creators = 1;' >> $tfile
+echo "[i] run tempfile: $tfile"
+/usr/bin/mysqld --user=mysql --bootstrap --verbose=0 < $tfile
+rm -f $tfile
+echo "[i] Sleeping 5 sec"
+sleep 5
+echo "Starting all process"
+exec /usr/bin/mysqld --user=mysql --console --log-bin-trust-function-creators=1 &
+
+AFter starting the mysql you need to enter into the /etc/my.cnfd/ folder and there you ca found the mariadb-server.cnf file you neeed to enter into that file copy the below content and paste it overthere
+
+#
+
+# These groups are read by MariaDB server.
+
+# Use it for options that only the server (but not clients) should see # this is read by the standalone daemon and embedded servers
+
+[server] # this is only for the mysqld standalone daemon
+
+[mysqld]
+
+#skip-networking # Galera-related settings
+
+[galera]
+
+# Mandatory settings
+
+#wsrep_on=ON
+
+#wsrep_provider=
+
+#wsrep_cluster_address=
+
+#binlog_format=row
+
+#default_storage_engine=InnoDB
+
+#innodb_autoinc_lock_mode=2
+
+#
+
+# Allow server to accept connections on all interfaces.
+
+#
+
+bind-address=0.0.0.0
+
+#
+
+# Optional setting
+
+#wsrep_slave_threads=1
+
+#innodb_flush_log_at_trx_commit=0 # this is only for embedded server
+
+[embedded] # This group is only read by MariaDB servers, not by MySQL.
+
+# If you use the same .cnf file for MySQL and MariaDB,
+
+# you can put MariaDB-only options here
+
+[mariadb] # This group is only read by MariaDB-10.3 servers.
+
+# If you use the same .cnf file for MariaDB of different versions,
+
+# use this group for options that older servers don't understand
+
+[mariadb-10.3]
+
+
+Step9: you want to check whether user and database is created or not you just enter into mysql run the below commonds
+
+      * mysql -u magento -p
+      enter password: magento
+      * SHOW DATABASES;
+ you will found magento database
+
+After that you need to cameout of the mysql terminal
+
+
+Step10: elasticsearch Installation for this you needto install some packages you just run the below commond
+
+        * apk add curl wget  vim sudo bash net-tools openjdk11 && rm -rf /var/cache/apk/* && wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.6.2-linux-x86_64.tar.gz && tar -xvzf elasticsearch-7.6.2-linux-x86_64.tar.gz -C /usr/share/ && echo -e "export ES_JAVA_HOME=/usr/lib/jvm/java-11-openjdk\nexport JAVA_HOME=/usr/lib/jvm/java-11-openjdk" >> /etc/profile && mv /usr/share/elasticsearch-7.6* /usr/share/elasticsearch && mkdir /usr/share/elasticsearch/data && mkdir /usr/share/elasticsearch/config/scripts && adduser -D -u 1000 -h /usr/share/elasticsearch elasticsearch && chown -R elasticsearch /usr/share/elasticsearch && rm -rf /usr/share/elasticsearch/modules/x-pack-ml && rm -rf /var/cache/apk/* /elasticsearch-7.6.2-linux-x86_64.tar.gz
+        
+To start the elasticsearch 
+
+su - elasticsearch -c /usr/share/elasticsearch/bin/elasticsearch &
+
+Step11: Then you just move into /usr/share/elasticsearch/config this folder there you can found the elasticsearch.yml file you need to enter into that file and do some modification
+
+        * vim elasticsearch.yml
+   whatever we do modification we need to uncommit that lines
+       cluster.name: elasticsearch
+       node.name: elasticsearch
+       network.host: 0.0.0.0
+       http.port: 9200
+       cluster.initial_master_nodes: elasticsearch
+     Then save and quiet
+     
+Step12: Then we need to copy the code and database to the container for that u run the below command
+
+       * docker cp /path/to/directory mycontainer:/path/in/container/
+       
+Step13: then you need to enter into that folder what ever you created the folder you need to enter into that
+
+        cd A1
+Step14: After that you just import the database and rename the code to magento
+        * zcat LWCC_main_Production_27Sep2022.sql.gz -f | sed -re 's/DEFINER=`[^`]+`@`[^`]+`//' | mysql --user magento -p magento -A
+        * mv living-word-christian-center magento
+    Then you just move this magento folder to /var/www/html/
+        * mkdir -p /var/www/html
+        mv magento /var/www/html
+Step15: then you need to connect to the mysql and check whether the database is import or not 
+
+        * mysql -u magento -p
+        enter password: magento
+        USE magento;
+        SHOW tables; it will show the tables.
+        
+Step16:  then you need to update the base url for this you just run the below commond
+         * UPDATE core_config_data SET value='http://magento2.4.2.com/' WHERE path='web/unsecure/base_url';
+       Then check whether the base url changed or not
+         * SELECT * FROM core_config_data WHERE path='web/unsecure/base_url';
+         
+Step17: After that you cameout of the mysql terminal and you move into the /var/www/html/magento folder
+
+         * exit
+         * cd /var/www/html/magento
+         
+Step 18: then just run the composer install
+
+         * composer install -n  
+            
+         if you get the composer update error you just run the composer update
+         * composer update
+         * composer install -n
+Step19: then We need to connect to the nginx folder
+ 
+         * cd /etc/nginx/conf.d
+         here we can found the default.conf file then you need to rename that folder and create one file with default.conf copy the below content and paste overthere
+         
+         
+## Example configuration:
+ upstream fastcgi_backend {
+#    # use tcp connection
+     server  127.0.0.1:9000;
+#    # or socket
+#    server   unix:/var/run/php/php7.4-fpm.sock;
+ }
+ server {
+    listen 80;
+    server_name magento2.4.3.com;
+    set $MAGE_ROOT /var/www/html/magento;
+#    set $MAGE_DEBUG_SHOW_ARGS 0;
+#    include /vagrant/magento2/nginx.conf.sample;
+# }
+#
+## Optional override of deployment mode. We recommend you use the
+## command 'bin/magento deploy:mode:set' to switch modes instead.
+##
+## set $MAGE_MODE default; # or production or developer
+##
+## If you set MAGE_MODE in server config, you must pass the variable into the
+## PHP entry point blocks, which are indicated below. You can pass
+## it in using:
+##
+## fastcgi_param  MAGE_MODE $MAGE_MODE;
+##
+## In production mode, you should uncomment the 'expires' directive in the /static/ location block
+# Modules can be loaded only at the very beginning of the Nginx config file, please move the line below to the main config file
+# load_module /etc/nginx/modules/ngx_http_image_filter_module.so;
+root $MAGE_ROOT/pub;
+index index.php;
+autoindex off;
+charset UTF-8;
+error_page 404 403 = /errors/404.php;
+#add_header "X-UA-Compatible" "IE=Edge";
+# Deny access to sensitive files
+location /.user.ini {
+    deny all;
+}
+# PHP entry point for setup application
+location ~* ^/setup($|/) {
+    root $MAGE_ROOT;
+    location ~ ^/setup/index.php {
+        fastcgi_pass   fastcgi_backend;
+        fastcgi_param  PHP_FLAG  "session.auto_start=off \n suhosin.session.cryptua=off";
+        fastcgi_param  PHP_VALUE "memory_limit=756M \n max_execution_time=600";
+        fastcgi_read_timeout 600s;
+        fastcgi_connect_timeout 600s;
+        fastcgi_index  index.php;
+        fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+        include        fastcgi_params;
+    }
+    location ~ ^/setup/(?!pub/). {
+        deny all;
+    }
+    location ~ ^/setup/pub/ {
+        add_header X-Frame-Options "SAMEORIGIN";
+    }
+}
+# PHP entry point for update application
+location ~* ^/update($|/) {
+    root $MAGE_ROOT;
+    location ~ ^/update/index.php {
+        fastcgi_split_path_info ^(/update/index.php)(/.+)$;
+        fastcgi_pass   fastcgi_backend;
+        fastcgi_index  index.php;
+        fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+        fastcgi_param  PATH_INFO        $fastcgi_path_info;
+        include        fastcgi_params;
+    }
+    # Deny everything but index.php
+    location ~ ^/update/(?!pub/). {
+        deny all;
+    }
+    location ~ ^/update/pub/ {
+        add_header X-Frame-Options "SAMEORIGIN";
+    }
+}
+location / {
+    try_files $uri $uri/ /index.php$is_args$args;
+}
+location /pub/ {
+    location ~ ^/pub/media/(downloadable|customer|import|custom_options|theme_customization/.*\.xml) {
+        deny all;
+    }
+    alias $MAGE_ROOT/pub/;
+    add_header X-Frame-Options "SAMEORIGIN";
+}
+location /static/ {
+    # Uncomment the following line in production mode
+    # expires max;
+    # Remove signature of the static files that is used to overcome the browser cache
+    location ~ ^/static/version\d*/ {
+        rewrite ^/static/version\d*/(.*)$ /static/$1 last;
+    }
+    location ~* \.(ico|jpg|jpeg|png|gif|svg|svgz|webp|avif|avifs|js|css|eot|ttf|otf|woff|woff2|html|json|webmanifest)$ {
+        add_header Cache-Control "public";
+        add_header X-Frame-Options "SAMEORIGIN";
+        expires +1y;
+        if (!-f $request_filename) {
+            rewrite ^/static/(version\d*/)?(.*)$ /static.php?resource=$2 last;
+        }
+    }
+    location ~* \.(zip|gz|gzip|bz2|csv|xml)$ {
+        add_header Cache-Control "no-store";
+        add_header X-Frame-Options "SAMEORIGIN";
+        expires    off;
+        if (!-f $request_filename) {
+           rewrite ^/static/(version\d*/)?(.*)$ /static.php?resource=$2 last;
+        }
+    }
+    if (!-f $request_filename) {
+        rewrite ^/static/(version\d*/)?(.*)$ /static.php?resource=$2 last;
+    }
+    add_header X-Frame-Options "SAMEORIGIN";
+}
+location /media/ {
+## The following section allows to offload image resizing from Magento instance to the Nginx.
+## Catalog image URL format should be set accordingly.
+## See https://docs.magento.com/user-guide/configuration/general/web.html#url-options
+#   location ~* ^/media/catalog/.* {
+#
+#       # Replace placeholders and uncomment the line below to serve product images from public S3
+#       # See examples of S3 authentication at https://github.com/anomalizer/ngx_aws_auth
+#       # resolver 8.8.8.8;
+#       # proxy_pass https://<bucket-name>.<region-name>.amazonaws.com;
+#
+#       set $width "-";
+#       set $height "-";
+#       if ($arg_width != '') {
+#           set $width $arg_width;
+#       }
+#       if ($arg_height != '') {
+#           set $height $arg_height;
+#       }
+#       image_filter resize $width $height;
+#       image_filter_jpeg_quality 90;
+#   }
+    try_files $uri $uri/ /get.php$is_args$args;
+    location ~ ^/media/theme_customization/.*\.xml {
+        deny all;
+    }
+    location ~* \.(ico|jpg|jpeg|png|gif|svg|svgz|webp|avif|avifs|js|css|eot|ttf|otf|woff|woff2)$ {
+        add_header Cache-Control "public";
+        add_header X-Frame-Options "SAMEORIGIN";
+        expires +1y;
+        try_files $uri $uri/ /get.php$is_args$args;
+    }
+    location ~* \.(zip|gz|gzip|bz2|csv|xml)$ {
+        add_header Cache-Control "no-store";
+        add_header X-Frame-Options "SAMEORIGIN";
+        expires    off;
+        try_files $uri $uri/ /get.php$is_args$args;
+    }
+    add_header X-Frame-Options "SAMEORIGIN";
+}
+location /media/customer/ {
+    deny all;
+}
+location /media/downloadable/ {
+    deny all;
+}
+location /media/import/ {
+    deny all;
+}
+location /media/custom_options/ {
+    deny all;
+}
+location /errors/ {
+    location ~* \.xml$ {
+        deny all;
+    }
+}
+# PHP entry point for main application
+location ~ ^/(index|get|static|errors/report|errors/404|errors/503|health_check)\.php$ {
+    try_files $uri =404;
+    fastcgi_pass   fastcgi_backend;
+    fastcgi_buffers 16 16k;
+    fastcgi_buffer_size 32k;
+    fastcgi_param  PHP_FLAG  "session.auto_start=off \n suhosin.session.cryptua=off";
+    fastcgi_param  PHP_VALUE "memory_limit=756M \n max_execution_time=18000";
+    fastcgi_read_timeout 600s;
+    fastcgi_connect_timeout 600s;
+    fastcgi_index  index.php;
+    fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+    include        fastcgi_params;
+}
+gzip on;
+gzip_disable "msie6";
+gzip_comp_level 6;
+gzip_min_length 1100;
+gzip_buffers 16 8k;
+gzip_proxied any;
+gzip_types
+    text/plain
+    text/css
+    text/js
+    text/xml
+    text/javascript
+    application/javascript
+    application/x-javascript
+    application/json
+    application/xml
+    application/xml+rss
+    image/svg+xml;
+gzip_vary on;
+# Banned locations (only reached if the earlier PHP entry point regexes don't match)
+location ~* (\.php$|\.phtml$|\.htaccess$|\.git) {
+    deny all;
+}
+}
+
+
+
+Step20: after that you just move into /var/www/html/magento/app/etc folder there you can create one file
+    
+    * cd /var/www/html/magento/app/etc
+    * touch env.php paste the below content
+    * vim env.php
+<?php
+return [
+    'backend' => [
+        'frontName' => 'admin_1uv64e'
+    ],
+    'remote_storage' => [
+        'driver' => 'file'
+    ],
+    'queue' => [
+        'consumers_wait_for_messages' => 1
+    ],
+    'crypt' => [
+        'key' => 'b4411b0d06250ae97544e9723c67212c'
+    ],
+    'db' => [
+        'table_prefix' => '',
+        'connection' => [
+            'default' => [
+                'host' => '127.0.0.1',
+                'dbname' => 'magento',
+                'username' => 'magento',
+                'password' => 'magento',
+                'model' => 'mysql4',
+                'engine' => 'innodb',
+                'initStatements' => 'SET NAMES utf8;',
+                'active' => '1',
+                'driver_options' => [
+                    1014 => false
+                ]
+            ]
+        ]
+    ],
+    'resource' => [
+        'default_setup' => [
+            'connection' => 'default'
+        ]
+    ],
+    'x-frame-options' => 'SAMEORIGIN',
+    'MAGE_MODE' => 'default',
+    'session' => [
+        'save' => 'files'
+    ],
+    'cache' => [
+        'frontend' => [
+            'default' => [
+                'id_prefix' => 'f37_'
+            ],
+            'page_cache' => [
+                'id_prefix' => 'f37_'
+            ]
+        ],
+        'allow_parallel_generation' => false
+    ],
+    'lock' => [
+        'provider' => 'db',
+        'config' => [
+            'prefix' => null
+        ]
+    ],
+    'directories' => [
+        'document_root_is_pub' => true
+    ],
+    'cache_types' => [
+        'config' => 1,
+        'layout' => 1,
+        'block_html' => 1,
+        'collections' => 1,
+        'reflection' => 1,
+        'db_ddl' => 1,
+        'compiled_config' => 1,
+        'eav' => 1,
+        'customer_notification' => 1,
+        'config_integration' => 1,
+        'config_integration_api' => 1,
+        'full_page' => 1,
+        'config_webservice' => 1,
+        'translate' => 1,
+        'vertex' => 1
+    ],
+    'install' => [
+        'date' => 'Fri, 10 Feb 2023 11:02:39 +0000'
+    ]
+];
+
+
+Step21: then you connect to the /var/www/html/magento folder and run the below commonds
+
+     * composer install -n
+     * php bin/magento se:up
+     
+After running this commond if you get the Mysql error you just run the below commonds
+
+     * (ctrl+p ctrl+q)
+     * docker restart container_name
+     * docker exec -it container_name sh
+     * nginx
+     * su - elasticsearch -c /usr/share/elasticsearch/bin/elasticsearch &
+     * exec /usr/bin/mysqld --user=mysql --console --log-bin-trust-function-creators=1 &
+     * php-fpm7
+
+     
+     * composer install -n
+     * php bin/magento se:up
+     * php bin/magento setup:di:compile
+     * php bin/magento setup:static-content:deploy -f
+     * php bin/magento cache:clean
+     * php bin/magento cache:flush
+     * chmod -R 777 /var/www/html/magento
+     
+Step22: After that you need to know the ip addresses and save that ip addresses into your local
+
+     * hostname -i 
+     * (ctrl+p ctrl+q)
+     
+Step23: after that you need to open the hosts file and paste the ip addresses overthere
+     * vim /etc/hosts
+     ip addresses (base_url) 
+     
+then connect to the google and there you enter the baseurl like
+    * magento2.4.2.com  there you can found
